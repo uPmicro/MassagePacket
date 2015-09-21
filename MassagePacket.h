@@ -1,5 +1,5 @@
 #ifndef MassagePacket_h
-#define SeiralPacket_h
+#define MassagePacket_h
 #include <Arduino.h>
 
 
