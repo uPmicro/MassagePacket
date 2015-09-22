@@ -16,8 +16,6 @@ MassagePacket::MassagePacket(){
 	MessageRx.msgid = 0;
 	MessageRx.crc = 0;
 	
-	
-
 	_nodeID = 0;
 	_rejNodeID = 0;
 	_avoidLEN =0;
@@ -77,14 +75,14 @@ boolean MassagePacket::parseByte(uint8_t ch){
 			MassageRx_Status.parse_state++;
 			break;
 		}
-		case 2:{ //got sytem id
+		case 2:{ //got Destination id
 			if(_rejNodeID != true){ //reject packet
 				MessageRx.srcid = ch;
 			}		
 			MassageRx_Status.parse_state++;
 			break;
 		}				
-		case 3:{ //got sytem id
+		case 3:{ //got source id
 			if(_rejNodeID != true){ //reject packet
 				MessageRx.cmdid = ch;
 			}		
@@ -140,7 +138,7 @@ boolean MassagePacket::parseByte(uint8_t ch){
 					clearPayLoad(MessageRx.len);
 				}
 			}else{
-				MassageRx_Status.parse_state = 0;
+				MassageTx_Status.parse_state = 0;
 				_rejNodeID = false;
 				clearPayLoad(MessageRx.len);	
 			}
@@ -176,28 +174,64 @@ void MassagePacket::setPayloadTransmit(uint8_t size,uint8_t *param){
 	}	
 	MessageTx.len = size;
 	//sync-destid-srcid-cmdid-msgid-len-data[n]-crc
-	packetTxStep = 6+size; //7-1 = 6 defualt packet(0..6+data n)
+	MassageTx_Status.property_len = size;
+	MassageTx_Status.property_state = 0;
+	MassageTx_Status.payload_state = 0;
 }
 
 uint8_t MassagePacket::transmitPacket(){
-//	MessageTx.sync	= SYNC_PAKAGE;
-//	MessageTx.crc = 0;
-//	SerialPort->write(MessageTx.sync);  MessageTx.crc = MessageTx.crc^MessageTx.sync;
-//	SerialPort->write(MessageTx.destid); MessageTx.crc = MessageTx.crc^MessageTx.destid;
-//	SerialPort->write(MessageTx.cmdid); MessageTx.crc = MessageTx.crc^MessageTx.cmdid;
-//	SerialPort->write(MessageTx.msgid); MessageTx.crc = MessageTx.crc^MessageTx.msgid;
-//	SerialPort->write(MessageTx.len);	MessageTx.crc = MessageTx.crc^MessageTx.len;
-//	for(uint8_t MsgTx = 0;MsgTx < MessageTx.len;MsgTx++){
-//		SerialPort->write(MessageTx.payload[MsgTx]); MessageTx.crc = MessageTx.crc^MessageTx.payload[MsgTx];
-//	}
-//	SerialPort->write(MessageTx.crc);
-	uint8_t addrTx = ((MessageTx.len+6) - packetTxStep);
-	packetTxStep--; if(packetTxStep < 0) packetTxStep = 0;
-	return (uint8_t *)&(MessageTx+addr)
+	uint8_t ret = 0;
+	switch(MassageTx_Status.property_state){
+		case 0:{//start
+			ret = MessageTx.sync;
+			MassageTx_Status.property_state++;
+			break;
+		}
+		case 1:{//done sycn
+			ret = MessageTx.destid;
+			MassageTx_Status.property_state++;
+			break;
+		}
+		case 2:{//done dest id
+			ret = MessageTx.srcid;
+			MassageTx_Status.property_state++;
+			break;
+		}
+		case 3:{//done srcid 
+			ret = MessageTx.cmdid;
+			MassageTx_Status.property_state++;
+			break;
+		}
+		case 4:{//done cmdid
+			ret = MessageTx.msgid;
+			MassageTx_Status.property_state++;
+			break;
+		}
+		case 5:{//done msgid
+			ret = MessageTx.len;
+			break;
+		}
+		case 6:{//done len
+			if(MassageTx_Status.payload_state < MassageTx_Status.property_len){
+				ret = MessageTx.payload[MassageTx_Status.payload_state];
+				MassageTx_Status.payload_state++;
+			}else{
+				MassageTx_Status.property_state++;
+				MassageTx_Status.payload_state = 0;
+			}		
+			break;
+		}
+		case 7:{//done playload
+			ret = calculateChecksum(&MessageTx);
+			break;
+		}
+	}
 }
 
 uint8_t sizePackectTransmit(){
-	return	packetTxStep;
+	uint8_t ret = 0;
+	ret = 7 - MassageTx_Status.property_state;
+	return	ret;
 }
 
 uint8_t MassagePacket::calculateChecksum(Message_StructInfo *msgInfo){
@@ -235,7 +269,7 @@ void MassagePacket::printInfo()
 	Serial.print(MessageRx.payload[MsgRx],HEX);Serial.print(" ");
   }
 
-  Serial.print("Crc: ");
+  Serial.print("CRC: ");
   Serial.println(MessageRx.crc,HEX);
   Serial.println("------------");
 }

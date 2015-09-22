@@ -84,9 +84,14 @@ class MassagePacket{
 	struct{
 		uint8_t parse_state;
 		uint8_t download_state;
-	}MassageRx_Status; 
+	}MassageRx_Status;
 	
-	volatile int8_t packetTxStep;
+	struct{
+		int8_t property_len;
+		int8_t payload_state;
+		int8_t property_state;		
+	}MassageTx_Status; 
+	
 
 	volatile uint8_t _nodeID;
 	volatile uint8_t _avoidLEN;
