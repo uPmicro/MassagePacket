@@ -18,13 +18,20 @@
 #define PACKAGE_PLYLOAD_SIZE 32
 #define SYNC_PAKAGE 0xF5
 
-typedef struct Packet_StructInfo{
+typedef struct MassagePacket_StructInfo{
 	uint8_t destid;       //Destination id
 	uint8_t srcid;    //Source id
 	uint8_t cmdid;    // command id
 	uint8_t msgid;    // ID of message in payload
 	uint8_t len;      // Length of payload		
 	uint8_t payload[PACKAGE_PLYLOAD_SIZE];		
+};
+
+typedef struct MassagePacket_Status_t{
+	uint8_t parse_state;
+	uint8_t download_state;	
+	uint8_t upload_state;
+	uint8_t transmit_state;	
 };
 
 class MassagePacket{
@@ -37,15 +44,16 @@ class MassagePacket{
 	    uint8_t getCommandID();
 	    uint8_t getMessageID();
 	    uint8_t getPayLoadLength();
-	    boolean parseByte(uint8_t ch); 
-	    void  getPacket(Packet_StructInfo &packetInfo);
+	    boolean parseByte(uint8_t ch,MassagePacket_Status_t &MassageRx_Status); 
+	    void  getPacket(MassagePacket_StructInfo &packetInfo);
 	    void printInfo();
 	    
 	    //uint32_t ToInt32(uint8_t *param);
 	    void setPropertyTransmit(uint8_t addrDest,uint8_t addrSrc,uint8_t cmd,uint8_t msgID);
 	    void setPayloadTransmit(uint8_t size,uint8_t *param);
-	    uint8_t transmitPacket();
+	    uint8_t transmitPacket(MassagePacket_Status_t &MassageTx_Status);
 	    uint8_t sizePackectTransmit();
+	    boolean nextPacketTransmit();
 	    
 	// |-sync-|-destid-|-srcid-|-cmdid-|-msgid-|-len-|-payload-|-crc-|
 	// cmdid 01 -> brocade   //scan port
@@ -86,16 +94,13 @@ class MassagePacket{
 		uint8_t download_state;
 	}MassageRx_Status;
 	
-	struct{
-		int8_t property_len;
-		int8_t payload_state;
-		int8_t property_state;		
-	}MassageTx_Status; 
+
 	
 
 	volatile uint8_t _nodeID;
 	volatile uint8_t _avoidLEN;
 	volatile boolean _rejNodeID;
+	volatile boolean _nextTransmit;
 	
 	
 	

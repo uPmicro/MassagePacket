@@ -19,9 +19,8 @@ MassagePacket::MassagePacket(){
 	_nodeID = 0;
 	_rejNodeID = 0;
 	_avoidLEN =0;
-		
-	MassageRx_Status.parse_state = 0;
-	MassageRx_Status.download_state = 0;
+	
+	_nextTransmit = true;
 	
 }
 
@@ -53,7 +52,7 @@ uint8_t MassagePacket::getPayLoadLength(){
 	return MessageRx.len;
 }
 
-boolean MassagePacket::parseByte(uint8_t ch){
+boolean MassagePacket::parseByte(uint8_t ch,MassagePacket_Status_t &MassageRx_Status){
 	switch(MassageRx_Status.parse_state){
 		case 0:{//got idle
 			if(ch==SYNC_PAKAGE){
@@ -148,7 +147,7 @@ boolean MassagePacket::parseByte(uint8_t ch){
 	return false;
 }
 
-void  MassagePacket::getPacket(Packet_StructInfo &packetInfo){
+void  MassagePacket::getPacket(MassagePacket_StructInfo &packetInfo){
 	packetInfo.destid = MessageRx.destid;
 	packetInfo.srcid = MessageRx.srcid;
 	packetInfo.cmdid = MessageRx.cmdid;
@@ -173,65 +172,83 @@ void MassagePacket::setPayloadTransmit(uint8_t size,uint8_t *param){
 		MessageTx.payload[MsgTx] = *(param + MsgTx);
 	}	
 	MessageTx.len = size;
-	//sync-destid-srcid-cmdid-msgid-len-data[n]-crc
-	MassageTx_Status.property_len = size;
-	MassageTx_Status.property_state = 0;
-	MassageTx_Status.payload_state = 0;
 }
 
-uint8_t MassagePacket::transmitPacket(){
-	uint8_t ret = 0;
-	switch(MassageTx_Status.property_state){
+uint8_t MassagePacket::transmitPacket(MassagePacket_Status_t &MassageTx_Status){
+	uint8_t ret = 0;	
+	switch(MassageTx_Status.transmit_state){
 		case 0:{//start
 			ret = MessageTx.sync;
-			MassageTx_Status.property_state++;
+			MassageTx_Status.transmit_state++;
+			_nextTransmit = true;
 			break;
 		}
 		case 1:{//done sycn
 			ret = MessageTx.destid;
-			MassageTx_Status.property_state++;
+			MassageTx_Status.transmit_state++;
+			_nextTransmit = true;
 			break;
 		}
 		case 2:{//done dest id
 			ret = MessageTx.srcid;
-			MassageTx_Status.property_state++;
+			MassageTx_Status.transmit_state++;
+			_nextTransmit = true;
 			break;
 		}
 		case 3:{//done srcid 
 			ret = MessageTx.cmdid;
-			MassageTx_Status.property_state++;
+			MassageTx_Status.transmit_state++;
+			_nextTransmit = true;
 			break;
 		}
 		case 4:{//done cmdid
 			ret = MessageTx.msgid;
-			MassageTx_Status.property_state++;
+			MassageTx_Status.transmit_state++;
+			_nextTransmit = true;
 			break;
 		}
 		case 5:{//done msgid
 			ret = MessageTx.len;
+			MassageTx_Status.transmit_state++;
+			_nextTransmit = true;
 			break;
 		}
-		case 6:{//done len
-			if(MassageTx_Status.payload_state < MassageTx_Status.property_len){
-				ret = MessageTx.payload[MassageTx_Status.payload_state];
-				MassageTx_Status.payload_state++;
+		case 6:{
+			if(MassageTx_Status.upload_state < MessageTx.len){
+				ret = MessageTx.payload[MassageTx_Status.upload_state];
+				MassageTx_Status.upload_state++;
+				if(MassageTx_Status.upload_state == MessageTx.len){
+					MassageTx_Status.upload_state = 0;
+					MassageTx_Status.transmit_state++;
+				}	
 			}else{
-				MassageTx_Status.property_state++;
-				MassageTx_Status.payload_state = 0;
-			}		
+				MassageTx_Status.upload_state = 0;
+				MassageTx_Status.transmit_state++;
+			}
+			_nextTransmit = true;
 			break;
 		}
-		case 7:{//done playload
-			ret = calculateChecksum(&MessageTx);
+		case 7:{
+				ret = calculateChecksum(&MessageTx);
+				MassageTx_Status.upload_state = 0;
+				MassageTx_Status.transmit_state = 0;
+				_nextTransmit = false;				
 			break;
 		}
 	}
+	
+
 	return ret;
+}
+
+boolean MassagePacket::nextPacketTransmit(){
+	return _nextTransmit;
 }
 
 uint8_t MassagePacket::sizePackectTransmit(){
 	uint8_t ret = 0;
-	ret = 7 - MassageTx_Status.property_state;
+	//sync-destid-srcid-cmdid-msgid-len-data[n]-crc
+	ret = 7 + MessageTx.len;
 	return	ret;
 }
 
