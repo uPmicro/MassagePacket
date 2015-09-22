@@ -44,8 +44,8 @@ class MassagePacket{
 	    //uint32_t ToInt32(uint8_t *param);
 	    void setPropertyTransmit(uint8_t addrDest,uint8_t addrSrc,uint8_t cmd,uint8_t msgID);
 	    void setPayloadTransmit(uint8_t size,uint8_t *param);
-	    void transmitPacket();
-	    uint8_t sizePackectSend();
+	    uint8_t transmitPacket();
+	    uint8_t sizePackectTransmit();
 	    
 	// |-sync-|-destid-|-srcid-|-cmdid-|-msgid-|-len-|-payload-|-crc-|
 	// cmdid 01 -> brocade   //scan port

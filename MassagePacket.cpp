@@ -26,7 +26,7 @@ MassagePacket::MassagePacket(){
 }
 
 void MassagePacket::begin(){
-	begin(SERAILPORT0,115200,0x01); //master 0x01
+	begin(0x01); //master 0x01
 }
 
 void MassagePacket::begin(uint8_t sysID){
@@ -138,7 +138,7 @@ boolean MassagePacket::parseByte(uint8_t ch){
 					clearPayLoad(MessageRx.len);
 				}
 			}else{
-				MassageTx_Status.parse_state = 0;
+				MassageRx_Status.parse_state = 0;
 				_rejNodeID = false;
 				clearPayLoad(MessageRx.len);	
 			}
@@ -226,9 +226,10 @@ uint8_t MassagePacket::transmitPacket(){
 			break;
 		}
 	}
+	return ret;
 }
 
-uint8_t sizePackectTransmit(){
+uint8_t MassagePacket::sizePackectTransmit(){
 	uint8_t ret = 0;
 	ret = 7 - MassageTx_Status.property_state;
 	return	ret;
